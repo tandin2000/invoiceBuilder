@@ -173,9 +173,10 @@ const generatePDF = async (invoice, client) => {
 // Send email with PDF attachment
 const sendInvoiceEmail = async (client, invoice, pdfPath) => {
   const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: process.env.SMTP_PORT,
-    secure: process.env.SMTP_SECURE === 'true',
+    // host: process.env.SMTP_HOST,
+    // port: process.env.SMTP_PORT,
+    // secure: process.env.SMTP_SECURE === 'true',
+    service: "gmail",
     auth: {
       user: process.env.SMTP_USER,
       pass: process.env.SMTP_PASS
@@ -230,7 +231,7 @@ router.post('/', validateInvoice, async (req, res) => {
   }
 
   try {
-    console.log('Creating invoice with data:', req.body);
+    // console.log('Creating invoice with data:', req.body);
     
     // Generate invoice number (you might want to implement a more sophisticated system)
     const count = await Invoice.countDocuments();
@@ -241,10 +242,10 @@ router.post('/', validateInvoice, async (req, res) => {
       invoiceNumber
     });
     
-    console.log('Invoice object before save:', invoice);
+    // console.log('Invoice object before save:', invoice);
     
     const newInvoice = await invoice.save();
-    console.log('Invoice saved successfully:', newInvoice);
+    // console.log('Invoice saved successfully:', newInvoice);
     res.status(201).json(newInvoice);
   } catch (error) {
     console.error('Error creating invoice:', error);

@@ -88,8 +88,8 @@ const invoiceSchema = new mongoose.Schema({
 
 // Calculate totals before validation
 invoiceSchema.pre('validate', function(next) {
-  console.log('Pre-validate hook running...');
-  console.log('LineItems:', this.lineItems);
+  // console.log('Pre-validate hook running...');
+  // console.log('LineItems:', this.lineItems);
   
   if (this.lineItems && this.lineItems.length > 0) {
     this.subtotal = this.lineItems.reduce((sum, item) => {
@@ -103,11 +103,11 @@ invoiceSchema.pre('validate', function(next) {
 
     this.total = this.subtotal + this.taxTotal;
     
-    console.log('Calculated totals:', {
-      subtotal: this.subtotal,
-      taxTotal: this.taxTotal,
-      total: this.total
-    });
+    // console.log('Calculated totals:', {
+    //   subtotal: this.subtotal,
+    //   taxTotal: this.taxTotal,
+    //   total: this.total
+    // });
   } else {
     console.log('No lineItems found, setting defaults');
     this.subtotal = 0;
