@@ -24,7 +24,7 @@ const statusColors = {
   sent: 'info',
   paid: 'success',
   overdue: 'error',
-  cancelled: 'error',
+  cancel: 'error',
 };
 
 function Invoices() {
@@ -117,6 +117,11 @@ function Invoices() {
           label={params.value}
           color={statusColors[params.value]}
           size="small"
+          onClick={(e) => {
+            e.stopPropagation();
+            handleMenuClick(e, params.row);
+          }}
+          sx={{ cursor: 'pointer' }}
         />
       ),
     },
@@ -233,10 +238,14 @@ function Invoices() {
         open={Boolean(anchorEl)}
         onClose={handleMenuClose}
       >
-        {selectedInvoice?.status === 'draft' && (<MenuItem onClick={() => handleStatusChange('sent')}>Mark as Sent</MenuItem>)}
-        {selectedInvoice?.status === 'sent' && (<MenuItem onClick={() => handleStatusChange('paid')}>Mark as Paid</MenuItem>)}
-        {selectedInvoice?.status === 'sent' && (<MenuItem onClick={() => handleStatusChange('draft')}>Mark as Draft</MenuItem>)}
-        {selectedInvoice?.status === 'paid' && (<MenuItem onClick={() => handleStatusChange('sent')}>Mark as Sent</MenuItem>)}
+        {selectedInvoice?.status === 'draft' && (<MenuItem onClick={() => handleStatusChange('sent')}>Sent</MenuItem>)}
+        {selectedInvoice?.status === 'sent' && (<MenuItem onClick={() => handleStatusChange('paid')}>Paid</MenuItem>)}
+        {selectedInvoice?.status === 'sent' && (<MenuItem onClick={() => handleStatusChange('draft')}>Draft</MenuItem>)}
+        {selectedInvoice?.status === 'paid' && (<MenuItem onClick={() => handleStatusChange('sent')}>Sent</MenuItem>)}
+        {selectedInvoice?.status !== 'cancel' && (<MenuItem onClick={() => handleStatusChange('cancel')}>Cancel</MenuItem>)}
+        {selectedInvoice?.status === 'cancel' && (<MenuItem onClick={() => handleStatusChange('draft')}>Draft</MenuItem>)}
+        {selectedInvoice?.status !== 'overdue' && (<MenuItem onClick={() => handleStatusChange('overdue')}>Overdue</MenuItem>)}
+        {selectedInvoice?.status === 'overdue' && (<MenuItem onClick={() => handleStatusChange('sent')}>Sent</MenuItem>)}
       </Menu>
     </Box>
   );

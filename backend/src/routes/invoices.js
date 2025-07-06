@@ -594,7 +594,7 @@ router.get('/:id/download', async (req, res) => {
 // Update invoice status
 router.patch('/:id/status', async (req, res) => {
   const { status } = req.body;
-  const validStatuses = ['draft', 'sent', 'paid', 'overdue', 'cancelled'];
+  const validStatuses = ['draft', 'sent', 'paid', 'overdue', 'cancel'];
   if (!validStatuses.includes(status)) {
     return res.status(400).json({ message: 'Invalid status' });
   }

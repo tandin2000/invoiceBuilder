@@ -38,7 +38,7 @@ const invoiceSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['draft', 'sent', 'paid', 'overdue', 'cancelled'],
+    enum: ['draft', 'sent', 'paid', 'overdue', 'cancel'],
     default: 'draft'
   },
   subtotal: {

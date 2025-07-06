@@ -20,12 +20,16 @@ import {
   Checkbox,
   FormGroup,
   FormControlLabel,
+  Menu,
+  MenuItem,
+  IconButton,
 } from '@mui/material';
 import {
   Edit as EditIcon,
   Send as SendIcon,
   Download as DownloadIcon,
   ArrowBack as ArrowBackIcon,
+  MoreVert as MoreVertIcon,
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
 import { invoicesApi } from '../services/api';
@@ -35,7 +39,7 @@ const statusColors = {
   sent: 'info',
   paid: 'success',
   overdue: 'error',
-  cancelled: 'error',
+  cancel: 'error',
 };
 
 function ViewInvoice() {
@@ -44,6 +48,7 @@ function ViewInvoice() {
   const [invoice, setInvoice] = useState(null);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [anchorEl, setAnchorEl] = useState(null);
 
   useEffect(() => {
     const fetchInvoice = async () => {
@@ -87,6 +92,33 @@ function ViewInvoice() {
       link.remove();
     } catch (error) {
       toast.error(error.message);
+    }
+  };
+
+  const handleStatusMenuClick = (event) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleStatusMenuClose = () => {
+    setAnchorEl(null);
+  };
+
+  const handleStatusChange = async (status) => {
+    try {
+      if (status === 'sent') {
+        await invoicesApi.send(id);
+        toast.success('Invoice marked as sent!');
+      } else {
+        await invoicesApi.updateStatus(id, status);
+        toast.success(`Invoice marked as ${status}!`);
+      }
+      // Refresh the invoice data
+      const response = await invoicesApi.getById(id);
+      setInvoice(response.data);
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      handleStatusMenuClose();
     }
   };
 
@@ -167,7 +199,16 @@ function ViewInvoice() {
               <Box textAlign="right">
                 <Typography variant="h6">Work Order / Invoice</Typography>
                 <Typography variant="body2">Invoice #: {invoice.invoiceNumber}</Typography>
-                <Typography variant="body2">Status: <Chip label={invoice.status} color={statusColors[invoice.status]} size="small" /></Typography>
+                <Box display="flex" alignItems="center" justifyContent="flex-end" gap={1}>
+                  <Typography variant="body2">Status: </Typography>
+                  <Chip 
+                    label={invoice.status} 
+                    color={statusColors[invoice.status]} 
+                    size="small" 
+                    onClick={handleStatusMenuClick}
+                    sx={{ cursor: 'pointer' }}
+                  />
+                </Box>
               </Box>
             </Grid>
           </Grid>
@@ -312,6 +353,38 @@ function ViewInvoice() {
           </Box>
         </CardContent>
       </Card>
+
+      {/* Status Change Menu */}
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={handleStatusMenuClose}
+      >
+        {invoice?.status === 'draft' && (
+          <MenuItem onClick={() => handleStatusChange('sent')}>Sent</MenuItem>
+        )}
+        {invoice?.status === 'sent' && (
+          <MenuItem onClick={() => handleStatusChange('paid')}>Paid</MenuItem>
+        )}
+        {invoice?.status === 'sent' && (
+          <MenuItem onClick={() => handleStatusChange('draft')}> Draft</MenuItem>
+        )}
+        {invoice?.status === 'paid' && (
+          <MenuItem onClick={() => handleStatusChange('sent')}>Sent</MenuItem>
+        )}
+        {invoice?.status !== 'cancel' && (
+          <MenuItem onClick={() => handleStatusChange('cancel')}>Cancel</MenuItem>
+        )}
+        {invoice?.status === 'cancel' && (
+          <MenuItem onClick={() => handleStatusChange('draft')}>Draft</MenuItem>
+        )}
+        {invoice?.status !== 'overdue' && (
+          <MenuItem onClick={() => handleStatusChange('overdue')}>Overdue</MenuItem>
+        )}
+        {invoice?.status === 'overdue' && (
+          <MenuItem onClick={() => handleStatusChange('sent')}>Sent</MenuItem>
+        )}
+      </Menu>
     </Box>
   );
 }
