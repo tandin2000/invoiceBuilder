@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Box,
   Button,
@@ -11,15 +11,19 @@ import {
 } from '@mui/material';
 import { toast } from 'react-toastify';
 import { settingsApi } from '../services/api';
+import SignaturePad from 'react-signature-canvas';
 
 function Settings() {
   const [settings, setSettings] = useState({
     companyName: '',
     address: '',
     termsAndConditions: '',
+    signature: '',
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const sigPadRef = useRef();
+  const [sigPadError, setSigPadError] = useState('');
 
   useEffect(() => {
     const fetchSettings = async () => {
@@ -29,6 +33,7 @@ function Settings() {
           companyName: response.data.companyName || '',
           address: response.data.address || '',
           termsAndConditions: response.data.termsAndConditions || '',
+          signature: response.data.signature || '',
         });
       } catch (error) {
         toast.error('Failed to fetch settings.');
@@ -42,6 +47,38 @@ function Settings() {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setSettings(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSignatureDelete = () => {
+    setSettings(prev => ({ ...prev, signature: '' }));
+    if (sigPadRef.current) sigPadRef.current.clear();
+    setSigPadError('');
+  };
+
+  const handleSignatureClear = () => {
+    sigPadRef.current.clear();
+    setSettings(prev => ({ ...prev, signature: '' }));
+    setSigPadError('');
+  };
+
+  const handleSignatureSave = () => {
+    if (sigPadRef.current.isEmpty()) {
+      setSigPadError('Please provide a signature or upload an image.');
+      return;
+    }
+    let dataUrl;
+    try {
+      if (typeof sigPadRef.current.getTrimmedCanvas === 'function') {
+        dataUrl = sigPadRef.current.getTrimmedCanvas().toDataURL('image/png');
+      } else {
+        dataUrl = sigPadRef.current.getCanvas().toDataURL('image/png');
+      }
+    } catch (e) {
+      dataUrl = sigPadRef.current.getCanvas().toDataURL('image/png');
+    }
+    setSettings(prev => ({ ...prev, signature: '' }));
+    setSettings(prev => ({ ...prev, signature: dataUrl }));
+    setSigPadError('');
   };
 
   const handleSubmit = async (e) => {
@@ -108,6 +145,32 @@ function Settings() {
                   value={settings.termsAndConditions}
                   onChange={handleChange}
                 />
+              </Grid>
+              <Grid item xs={12}>
+                <Typography variant="h6">Signature</Typography>
+                {settings.signature && (
+                  <Box mb={2}>
+                    <Typography variant="body2">Current Signature:</Typography>
+                    <img
+                      src={settings.signature}
+                      alt="Signature Preview"
+                      style={{ border: '1px solid #ccc', maxWidth: 300, maxHeight: 100 }}
+                    />
+                    <Box mt={1}>
+                      <Button variant="outlined" color="error" onClick={handleSignatureDelete}>Delete Signature</Button>
+                    </Box>
+                  </Box>
+                )}
+                <Box mb={2}>
+                  <SignaturePad
+                    ref={sigPadRef}
+                    canvasProps={{ width: 300, height: 100, className: 'sigCanvas', style: { border: '1px solid #ccc' } }}
+                  />
+                  <Box mt={1} display="flex" gap={1}>
+                    <Button variant="outlined" onClick={handleSignatureClear}>Clear</Button>
+                    <Button variant="contained" onClick={handleSignatureSave}>Save Drawing</Button>
+                  </Box>
+                </Box>
               </Grid>
             </Grid>
             <Box mt={3} display="flex" justifyContent="flex-end">

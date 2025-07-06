@@ -10,6 +10,16 @@ import {
   Typography,
   CircularProgress,
   Divider,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  Checkbox,
+  FormGroup,
+  FormControlLabel,
 } from '@mui/material';
 import {
   Edit as EditIcon,
@@ -88,6 +98,27 @@ function ViewInvoice() {
     );
   }
 
+  // Helper for job type checkboxes
+  const jobTypes = ['Day Work', 'Contract', 'Extra', 'Overtime', 'Other', 'Emergency Call'];
+
+  // Calculate totals
+  const totalMaterials = (invoice.materials || []).reduce((sum, m) => sum + (m.amount || 0), 0);
+  const totalLabour = (invoice.labour || []).reduce((sum, l) => sum + (l.amount || 0), 0);
+  const subtotal = totalMaterials + totalLabour;
+  const pstPercent = invoice.pst || 0;
+  const gstPercent = invoice.gst || 0;
+  const pst = (subtotal * pstPercent) / 100;
+  const gst = (subtotal * gstPercent) / 100;
+  const otherCharges = invoice.otherCharges || 0;
+  const total = subtotal + pst + gst + otherCharges;
+
+  // Helper function to format datetime
+  const formatDateTime = (dateTimeString) => {
+    if (!dateTimeString) return '';
+    const date = new Date(dateTimeString);
+    return date.toLocaleString();
+  };
+
   return (
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
@@ -125,154 +156,160 @@ function ViewInvoice() {
 
       <Card>
         <CardContent>
-          <Grid container spacing={3}>
-            <Grid item xs={12}>
-              <Box display="flex" justifyContent="space-between" alignItems="center">
-                <Typography variant="h4">
-                  Invoice #{invoice.invoiceNumber}
-                </Typography>
-                <Chip
-                  label={invoice.status}
-                  color={statusColors[invoice.status]}
-                />
+          {/* Header Section */}
+          <Grid container spacing={2} alignItems="center">
+            <Grid item xs={12} md={6}>
+              <Box display="flex" alignItems="center">
+                <img src="/company-logo.png" alt="Company Logo" style={{ width:300, marginRight: 16 }} />
               </Box>
             </Grid>
-
-            <Grid item xs={12}>
-              <Divider />
-            </Grid>
-
             <Grid item xs={12} md={6}>
-              <Typography variant="h6" gutterBottom>
-                Client Information
-              </Typography>
-              <Typography variant="body1">
-                {invoice.client.name}
-              </Typography>
-              {invoice.client.company && (
-                <Typography variant="body1">
-                  {invoice.client.company}
-                </Typography>
-              )}
-              <Typography variant="body1">
-                {invoice.client.address.street}
-              </Typography>
-              <Typography variant="body1">
-                {`${invoice.client.address.city}, ${invoice.client.address.state} ${invoice.client.address.zipCode}`}
-              </Typography>
-              <Typography variant="body1">
-                {invoice.client.address.country}
-              </Typography>
-              <Typography variant="body1">
-                Email: {invoice.client.email}
-              </Typography>
-              {invoice.client.phone && (
-                <Typography variant="body1">
-                  Phone: {invoice.client.phone}
-                </Typography>
-              )}
-            </Grid>
-
-            <Grid item xs={12} md={6}>
-              <Typography variant="h6" gutterBottom>
-                Invoice Details
-              </Typography>
-              <Typography variant="body1">
-                Issue Date: {new Date(invoice.issueDate).toLocaleDateString()}
-              </Typography>
-              <Typography variant="body1">
-                Due Date: {new Date(invoice.dueDate).toLocaleDateString()}
-              </Typography>
-            </Grid>
-
-            <Grid item xs={12}>
-              <Divider sx={{ my: 2 }} />
-            </Grid>
-
-            <Grid item xs={12}>
-              <Typography variant="h6" gutterBottom>
-                Line Items
-              </Typography>
-              <Box sx={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <thead>
-                    <tr>
-                      <th style={{ textAlign: 'left', padding: '8px' }}>Description</th>
-                      <th style={{ textAlign: 'right', padding: '8px' }}>Quantity</th>
-                      <th style={{ textAlign: 'right', padding: '8px' }}>Unit Price</th>
-                      <th style={{ textAlign: 'right', padding: '8px' }}>Tax Rate</th>
-                      <th style={{ textAlign: 'right', padding: '8px' }}>Amount</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {invoice.lineItems.map((item, index) => {
-                      const itemTotal = item.quantity * item.unitPrice;
-                      const itemTax = itemTotal * (item.taxRate / 100);
-                      return (
-                        <tr key={index}>
-                          <td style={{ padding: '8px' }}>{item.description}</td>
-                          <td style={{ textAlign: 'right', padding: '8px' }}>{item.quantity}</td>
-                          <td style={{ textAlign: 'right', padding: '8px' }}>
-                            ${item.unitPrice.toFixed(2)}
-                          </td>
-                          <td style={{ textAlign: 'right', padding: '8px' }}>
-                            {item.taxRate}%
-                          </td>
-                          <td style={{ textAlign: 'right', padding: '8px' }}>
-                            ${(itemTotal + itemTax).toFixed(2)}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </Box>
-            </Grid>
-
-            <Grid item xs={12}>
-              <Divider sx={{ my: 2 }} />
-            </Grid>
-
-            <Grid item xs={12} md={6}>
-              {invoice.notes && (
-                <Box mb={2}>
-                  <Typography variant="h6" gutterBottom>
-                    Notes
-                  </Typography>
-                  <Typography variant="body1">
-                    {invoice.notes}
-                  </Typography>
-                </Box>
-              )}
-              {invoice.terms && (
-                <Box>
-                  <Typography variant="h6" gutterBottom>
-                    Terms & Conditions
-                  </Typography>
-                  <Typography variant="body1">
-                    {invoice.terms}
-                  </Typography>
-                </Box>
-              )}
-            </Grid>
-
-            <Grid item xs={12} md={6}>
-              <Box sx={{ textAlign: 'right' }}>
-                <Typography variant="h6" gutterBottom>
-                  Summary
-                </Typography>
-                <Typography variant="body1" sx={{ mb: 1 }}>
-                  Subtotal: ${invoice.subtotal.toFixed(2)}
-                </Typography>
-                <Typography variant="body1" sx={{ mb: 1 }}>
-                  Tax Total: ${invoice.taxTotal.toFixed(2)}
-                </Typography>
-                <Typography variant="h5" color="primary" sx={{ mt: 2 }}>
-                  Total: ${invoice.total.toFixed(2)}
-                </Typography>
+              <Box textAlign="right">
+                <Typography variant="h6">Work Order / Invoice</Typography>
+                <Typography variant="body2">Invoice #: {invoice.invoiceNumber}</Typography>
+                <Typography variant="body2">Status: <Chip label={invoice.status} color={statusColors[invoice.status]} size="small" /></Typography>
               </Box>
             </Grid>
           </Grid>
+
+          {/* Invoice/Job Details */}
+          <Grid container spacing={2} sx={{ mt: 2 }}>
+            <Grid item xs={12} md={6}>
+              <Typography variant="subtitle2" fontWeight="bold">Invoice Details</Typography>
+              <Typography variant="body2">Issue Date: {invoice.issueDate ? new Date(invoice.issueDate).toLocaleDateString() : ''}</Typography>
+              <Typography variant="body2">Due Date: {invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString() : ''}</Typography>
+              <Typography variant="body2">Work Ordered By: {invoice.workOrderedBy}</Typography>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <Typography variant="subtitle2" fontWeight="bold">Job Details</Typography>
+              <Typography variant="body2">Job Location: {invoice.jobLocation}</Typography>
+              <Typography variant="body2">Job Date: {invoice.jobDate ? new Date(invoice.jobDate).toLocaleDateString() : ''}</Typography>
+              <Typography variant="body2">Job Start: {invoice.jobStart ? formatDateTime(invoice.jobStart) : ''}</Typography>
+              <Typography variant="body2">Job Finish: {invoice.jobFinish ? formatDateTime(invoice.jobFinish) : ''}</Typography>
+            </Grid>
+          </Grid>
+
+          {/* Customer Information */}
+          <Grid container spacing={2} sx={{ mt: 2 }}>
+            <Grid item xs={12} md={6}>
+              <Typography variant="subtitle2" fontWeight="bold">Customer Information</Typography>
+              <Typography variant="body2">Email: {invoice.customerEmail}</Typography>
+              <Typography variant="body2">Customer Number: {invoice.customerNumber}</Typography>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <Typography variant="subtitle2" fontWeight="bold">Job Type</Typography>
+              <FormGroup row>
+                {jobTypes.map(type => (
+                  <FormControlLabel
+                    key={type}
+                    control={<Checkbox checked={invoice.jobType && invoice.jobType.includes(type)} disabled />}
+                    label={type}
+                  />
+                ))}
+              </FormGroup>
+            </Grid>
+          </Grid>
+
+          {/* To Section */}
+          <Box sx={{ mt: 2 }}>
+            <Typography variant="subtitle2" fontWeight="bold">To</Typography>
+            <Typography variant="body2">{invoice.client?.name}</Typography>
+            {invoice.client?.company && <Typography variant="body2">{invoice.client.company}</Typography>}
+            {invoice.client?.address?.street && <Typography variant="body2">{invoice.client.address.street}</Typography>}
+            {(invoice.client?.address?.city || invoice.client?.address?.state || invoice.client?.address?.zipCode) && (
+              <Typography variant="body2">{`${invoice.client.address.city || ''}, ${invoice.client.address.state || ''} ${invoice.client.address.zipCode || ''}`}</Typography>
+            )}
+            {invoice.client?.address?.country && <Typography variant="body2">{invoice.client.address.country}</Typography>}
+          </Box>
+
+          {/* Description of Work */}
+          <Box sx={{ mt: 2, border: '1px solid #ccc', borderRadius: 1, p: 2 }}>
+            <Typography variant="subtitle2" fontWeight="bold">DESCRIPTION OF WORK</Typography>
+            <Typography variant="body2">{invoice.descriptionOfWork}</Typography>
+          </Box>
+
+          {/* Labour Table */}
+          <Box sx={{ mt: 2 }}>
+            <Typography variant="subtitle2" fontWeight="bold">Labour</Typography>
+            <TableContainer component={Paper} sx={{ mb: 2 }}>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Notes</TableCell>
+                    <TableCell>Labour Type</TableCell>
+                    <TableCell>Hours</TableCell>
+                    <TableCell>Rate</TableCell>
+                    <TableCell>Amount</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {(invoice.labour || []).map((lab, idx) => (
+                    <TableRow key={idx}>
+                      <TableCell>{lab.notes}</TableCell>
+                      <TableCell>{lab.type}</TableCell>
+                      <TableCell>{lab.hrs}</TableCell>
+                      <TableCell>${lab.rate?.toFixed(2)}</TableCell>
+                      <TableCell>${lab.amount?.toFixed(2)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </Box>
+
+          {/* Materials Table */}
+          <Box sx={{ mt: 2 }}>
+            <Typography variant="subtitle2" fontWeight="bold">Materials</Typography>
+            <TableContainer component={Paper} sx={{ mb: 2 }}>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Quantity</TableCell>
+                    <TableCell>Material</TableCell>
+                    <TableCell>Amount</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {(invoice.materials || []).map((mat, idx) => (
+                    <TableRow key={idx}>
+                      <TableCell>{mat.qty}</TableCell>
+                      <TableCell>{mat.material}</TableCell>
+                      <TableCell>${mat.amount?.toFixed(2)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </Box>
+
+          {/* Summary and Footer */}
+          <Grid container spacing={2} sx={{ mt: 2 }}>
+            <Grid item xs={12} md={6}>
+              <Typography variant="subtitle2" fontWeight="bold">WORK ORDERED BY</Typography>
+              <Typography variant="body2">{invoice.workOrderedBy}</Typography>
+              <Typography variant="body2">DATE: {invoice.issueDate ? new Date(invoice.issueDate).toLocaleDateString() : ''}</Typography>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <Box sx={{ textAlign: 'right' }}>
+                <Typography variant="subtitle2" fontWeight="bold">INVOICE SUMMARY</Typography>
+                <Typography variant="body2">TOTAL MATERIALS: ${totalMaterials.toFixed(2)}</Typography>
+                <Typography variant="body2">TOTAL LABOUR: ${totalLabour.toFixed(2)}</Typography>
+                <Typography variant="body2">SUBTOTAL: ${subtotal.toFixed(2)}</Typography>
+                <Typography variant="body2">PST ({pstPercent}%): ${pst.toFixed(2)}</Typography>
+                <Typography variant="body2">GST ({gstPercent}%): ${gst.toFixed(2)}</Typography>
+                <Typography variant="body2">OTHER CHARGES: ${otherCharges.toFixed(2)}</Typography>
+                <Divider sx={{ my: 1 }} />
+                <Typography variant="h6" fontWeight="bold">TOTAL: ${total.toFixed(2)}</Typography>
+              </Box>
+            </Grid>
+          </Grid>
+
+          {/* Footer Note */}
+          <Box sx={{ mt: 3, textAlign: 'center' }}>
+            <Typography variant="subtitle1" fontWeight="bold">
+              {invoice.footerNote || 'THANK YOU FOR THE BUSINESS'}
+            </Typography>
+          </Box>
         </CardContent>
       </Card>
     </Box>

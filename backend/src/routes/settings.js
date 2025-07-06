@@ -25,10 +25,13 @@ router.put('/', async (req, res) => {
       settings = new Setting();
     }
 
-    const { companyName, address, termsAndConditions } = req.body;
+    const { companyName, address, termsAndConditions, signature } = req.body;
     settings.companyName = companyName;
     settings.address = address;
     settings.termsAndConditions = termsAndConditions;
+    if (typeof signature !== 'undefined') {
+      settings.signature = signature;
+    }
 
     const updatedSettings = await settings.save();
     res.json(updatedSettings);

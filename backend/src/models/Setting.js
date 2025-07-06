@@ -13,6 +13,10 @@ const settingSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
+  signature: {
+    type: String,
+    trim: true
+  },
 }, { timestamps: true });
 
 module.exports = mongoose.model('Setting', settingSchema); 

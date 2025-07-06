@@ -1,27 +1,19 @@
 const mongoose = require('mongoose');
 
-const lineItemSchema = new mongoose.Schema({
-  description: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  quantity: {
-    type: Number,
-    required: true,
-    min: 0
-  },
-  unitPrice: {
-    type: Number,
-    required: true,
-    min: 0
-  },
-  taxRate: {
-    type: Number,
-    default: 0,
-    min: 0,
-    max: 100
-  }
+// New Labour Schema
+const labourSchema = new mongoose.Schema({
+  notes: { type: String, trim: true },
+  type: { type: String, enum: ['FIRST HOUR', 'ADDITIONAL HOUR', 'SECOND LABOUR'], required: true },
+  hrs: { type: Number, min: 0, required: true },
+  rate: { type: Number, min: 0, required: true },
+  amount: { type: Number, min: 0, required: true }
+});
+
+// New Material Schema
+const materialSchema = new mongoose.Schema({
+  qty: { type: Number, min: 0, required: true },
+  material: { type: String, required: true, trim: true },
+  amount: { type: Number, min: 0, required: true }
 });
 
 const invoiceSchema = new mongoose.Schema({
@@ -49,7 +41,6 @@ const invoiceSchema = new mongoose.Schema({
     enum: ['draft', 'sent', 'paid', 'overdue', 'cancelled'],
     default: 'draft'
   },
-  lineItems: [lineItemSchema],
   subtotal: {
     type: Number,
     required: true,
@@ -83,37 +74,38 @@ const invoiceSchema = new mongoose.Schema({
   updatedAt: {
     type: Date,
     default: Date.now
-  }
+  },
+  jobLocation: { type: String, trim: true },
+  jobDate: { type: Date },
+  jobStart: { type: Date },
+  jobFinish: { type: Date },
+  customerEmail: { type: String, trim: true },
+  customerNumber: { type: String, trim: true },
+  jobType: [{ type: String, enum: ['Day Work', 'Contract', 'Extra', 'Overtime', 'Other', 'Emergency Call'] }],
+  descriptionOfWork: { type: String, trim: true },
+  labour: [labourSchema],
+  materials: [materialSchema],
+  pst: { type: Number, min: 0, default: 0 },
+  gst: { type: Number, min: 0, default: 0 },
+  otherCharges: { type: Number, min: 0, default: 0 },
+  workOrderedBy: { type: String, trim: true },
+  footerNote: { type: String, trim: true, default: 'THANK YOU FOR THE BUSINESS' },
 });
 
-// Calculate totals before validation
+// Calculate totals before validation using labour and materials
 invoiceSchema.pre('validate', function(next) {
-  // console.log('Pre-validate hook running...');
-  // console.log('LineItems:', this.lineItems);
-  
-  if (this.lineItems && this.lineItems.length > 0) {
-    this.subtotal = this.lineItems.reduce((sum, item) => {
-      return sum + (item.quantity * item.unitPrice);
-    }, 0);
+  // Calculate subtotal as sum of all labour.amount and materials.amount
+  const labourSubtotal = (this.labour || []).reduce((sum, l) => sum + (l.amount || 0), 0);
+  const materialsSubtotal = (this.materials || []).reduce((sum, m) => sum + (m.amount || 0), 0);
+  this.subtotal = labourSubtotal + materialsSubtotal;
 
-    this.taxTotal = this.lineItems.reduce((sum, item) => {
-      const itemTotal = item.quantity * item.unitPrice;
-      return sum + (itemTotal * (item.taxRate / 100));
-    }, 0);
+  // Calculate taxTotal using pst and gst as percentages of subtotal
+  const pstValue = this.pst ? (this.subtotal * this.pst / 100) : 0;
+  const gstValue = this.gst ? (this.subtotal * this.gst / 100) : 0;
+  this.taxTotal = pstValue + gstValue;
 
-    this.total = this.subtotal + this.taxTotal;
-    
-    // console.log('Calculated totals:', {
-    //   subtotal: this.subtotal,
-    //   taxTotal: this.taxTotal,
-    //   total: this.total
-    // });
-  } else {
-    console.log('No lineItems found, setting defaults');
-    this.subtotal = 0;
-    this.taxTotal = 0;
-    this.total = 0;
-  }
+  // Total = subtotal + taxTotal + otherCharges
+  this.total = this.subtotal + this.taxTotal + (this.otherCharges || 0);
   next();
 });
 
