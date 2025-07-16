@@ -139,8 +139,9 @@ function ViewInvoice() {
   const subtotal = totalMaterials + totalLabour;
   const pstPercent = invoice.pst || 0;
   const gstPercent = invoice.gst || 0;
-  const pst = (subtotal * pstPercent) / 100;
-  const gst = (subtotal * gstPercent) / 100;
+  // PST and GST should be applied only to totalLabour
+  const pst = (totalLabour * pstPercent) / 100;
+  const gst = (totalLabour * gstPercent) / 100;
   const otherCharges = invoice.otherCharges || 0;
   const total = subtotal + pst + gst + otherCharges;
 

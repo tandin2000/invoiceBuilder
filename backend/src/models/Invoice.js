@@ -99,9 +99,9 @@ invoiceSchema.pre('validate', function(next) {
   const materialsSubtotal = (this.materials || []).reduce((sum, m) => sum + (m.amount || 0), 0);
   this.subtotal = labourSubtotal + materialsSubtotal;
 
-  // Calculate taxTotal using pst and gst as percentages of subtotal
-  const pstValue = this.pst ? (this.subtotal * this.pst / 100) : 0;
-  const gstValue = this.gst ? (this.subtotal * this.gst / 100) : 0;
+  // Calculate taxTotal using pst and gst as percentages of labourSubtotal only
+  const pstValue = this.pst ? (labourSubtotal * this.pst / 100) : 0;
+  const gstValue = this.gst ? (labourSubtotal * this.gst / 100) : 0;
   this.taxTotal = pstValue + gstValue;
 
   // Total = subtotal + taxTotal + otherCharges

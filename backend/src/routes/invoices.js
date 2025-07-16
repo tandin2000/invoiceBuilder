@@ -284,9 +284,9 @@ const generatePDF = async (invoice, client) => {
   }
   // Horizontal line below WORK ORDERED BY row
   doc.moveTo(leftX, footerY + 16).lineTo(leftX + footerLeftWidth, footerY + 16).stroke();
-  // Acknowledgement text
+  // Acknowledgement text (updated)
   doc.font('Helvetica').fontSize(7).text(
-    'I hereby acknowledge the satisfactory completion of the above described work. Payment needs to be made within two weeks from the invoice issue date.',
+    'I hereby acknowledge the satisfactory completion of the above described work. Payment needs to be made within two weeks from the invoice issue date. Overdue payment needs 10% of the total.',
     leftX + 5, footerY + 18, { width: footerLeftWidth - 10, align: 'justify' }
   );
   // Signature and Date columns: labels on top, value/image below
@@ -294,21 +294,10 @@ const generatePDF = async (invoice, client) => {
   const dateColX = leftX + 215;
   const sigLabelY = footerY + 40;
   const sigValueY = sigLabelY + 12;
-  // Signature image on top, label below
+  // Signature area: leave blank, only label
   let sigImageY = footerY + 40;
-  let labelYAligned = footerY + 72; // unified Y for both labels
-  if (settings && settings.signature) {
-    try {
-      const signatureBuffer = Buffer.from(settings.signature.split(',')[1] || settings.signature, 'base64');
-      // Center the signature image in its column (column width 90)
-      const sigImgWidth = 70;
-      const sigImgColWidth = 90;
-      const sigImgX = sigColX + (sigImgColWidth - sigImgWidth) / 2;
-      doc.image(signatureBuffer, sigImgX, sigImageY, { width: sigImgWidth, height: 25 });
-    } catch (e) {
-      doc.font('Helvetica').fontSize(9).text('[Invalid Signature Image]', sigColX, sigImageY + 10, { width: 90, align: 'center' });
-    }
-  }
+  let labelYAligned = footerY + 72;
+  // (Signature image removed, area left blank for manual signing)
   doc.font('Helvetica').fontSize(8).text('SIGNATURE', sigColX, labelYAligned, { width: 90, align: 'center' });
 
   // Date value on top, label below
@@ -367,13 +356,15 @@ const generatePDF = async (invoice, client) => {
   // Fill table
   const totalMaterials = (invoice.materials || []).reduce((sum, m) => sum + (m.amount || 0), 0);
   const totalLabour = (invoice.labour || []).reduce((sum, l) => sum + (l.amount || 0), 0);
-  const subtotal = totalMaterials + totalLabour;
-  // PST and GST as percentages
+  // PST and GST as percentages (apply only to totalLabour)
   const pstRate = invoice.pst || 0;
   const gstRate = invoice.gst || 0;
-  const pstAmount = (pstRate / 100) * subtotal;
-  const gstAmount = (gstRate / 100) * subtotal;
+  const pstAmount = (pstRate / 100) * totalLabour;
+  const gstAmount = (gstRate / 100) * totalLabour;
   const otherCharges = invoice.otherCharges || 0;
+  // Subtotal is totalMaterials + totalLabour
+  const subtotal = totalMaterials + totalLabour;
+  // Total is subtotal + PST + GST + other charges
   const total = subtotal + pstAmount + gstAmount + otherCharges;
   // Update labels for PST and GST to include percentage
   const totalsTableLabels = [

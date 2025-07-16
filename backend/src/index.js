@@ -1,9 +1,9 @@
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
 const winston = require('winston');
-const path = require('path');
 
 // Initialize express app
 const app = express();
@@ -32,6 +32,9 @@ app.use(express.urlencoded({ extended: true }));
 // Serve static files from uploads directory
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+// Serve static files from the React frontend build
+app.use(express.static(path.join(__dirname, '../../frontend/build')));
+
 // Database connection
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => logger.info('Connected to MongoDB'))
@@ -50,6 +53,11 @@ app.use((err, req, res, next) => {
     message: 'Something went wrong!',
     error: process.env.NODE_ENV === 'development' ? err.message : undefined
   });
+});
+
+// Catch-all handler to serve React's index.html for any other GET requests
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../../frontend/build', 'index.html'));
 });
 
 // Start server
