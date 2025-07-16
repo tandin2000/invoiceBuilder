@@ -415,8 +415,8 @@ const sendInvoiceEmail = async (client, invoice, pdfPath) => {
   const mailOptions = {
     from: process.env.SMTP_FROM,
     to: client.email,
-    subject: `Invoice ${invoice.invoiceNumber} from Your Company`,
-    text: `Dear ${client.name},\n\nPlease find attached invoice ${invoice.invoiceNumber}.\n\nBest regards,\nYour Company`,
+    subject: `Invoice ${invoice.invoiceNumber} from KPM Service Group`,
+    text: `Dear ${client.name},\n\nPlease find attached invoice ${invoice.invoiceNumber}.\n\nBest regards,\nKPM Service Group`,
     attachments: [{
       filename: `invoice-${invoice.invoiceNumber}.pdf`,
       path: pdfPath
