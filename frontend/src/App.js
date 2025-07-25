@@ -14,6 +14,7 @@ import CreateInvoice from './pages/CreateInvoice';
 import EditInvoice from './pages/EditInvoice';
 import ViewInvoice from './pages/ViewInvoice';
 import Settings from './pages/Settings';
+import Login from './pages/Login';
 
 const theme = createTheme({
   palette: {
@@ -41,6 +42,7 @@ function App() {
             <Route path="/invoices/:id/edit" element={<EditInvoice />} />
             <Route path="/invoices/:id" element={<ViewInvoice />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/login" element={<Login />} />
           </Routes>
         </Layout>
       </Router>

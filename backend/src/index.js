@@ -4,6 +4,7 @@ const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
 const winston = require('winston');
+const cookieParser = require('cookie-parser');
 
 // Initialize express app
 const app = express();
@@ -25,9 +26,24 @@ const logger = winston.createLogger({
 });
 
 // Middleware
-app.use(cors());
+const allowedOrigins = [
+  'http://localhost:3000',
+  'https://invoicebuilder.onrender.com'
+];
+
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
 
 // Serve static files from uploads directory
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
@@ -44,6 +60,7 @@ mongoose.connect(process.env.MONGODB_URI)
 app.use('/api/clients', require('./routes/clients'));
 app.use('/api/invoices', require('./routes/invoices'));
 app.use('/api/settings', require('./routes/settings'));
+app.use('/api/otp', require('./routes/otp'));
 
 // Error handling middleware
 app.use((err, req, res, next) => {

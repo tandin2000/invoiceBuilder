@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   AppBar,
@@ -37,6 +37,19 @@ function Layout({ children }) {
   const theme = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
+
+  useEffect(() => {
+    // Only check on client side
+    function getCookie(name) {
+      const value = `; ${document.cookie}`;
+      const parts = value.split(`; ${name}=`);
+      if (parts.length === 2) return parts.pop().split(';').shift();
+    }
+    const isVerified = getCookie('device_verified');
+    if (!isVerified && location.pathname !== '/login') {
+      navigate('/login');
+    }
+  }, [location, navigate]);
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
