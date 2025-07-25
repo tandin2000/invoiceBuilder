@@ -23,6 +23,12 @@ import {
   Menu,
   MenuItem,
   IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField as MuiTextField,
+  IconButton as MuiIconButton,
 } from '@mui/material';
 import {
   Edit as EditIcon,
@@ -30,6 +36,8 @@ import {
   Download as DownloadIcon,
   ArrowBack as ArrowBackIcon,
   MoreVert as MoreVertIcon,
+  Add as AddIcon,
+  Delete as DeleteIcon,
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
 import { invoicesApi } from '../services/api';
@@ -49,6 +57,10 @@ function ViewInvoice() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
+  const [bccDialogOpen, setBccDialogOpen] = useState(false);
+  const [bccList, setBccList] = useState([]);
+  const [bccInput, setBccInput] = useState({ name: '', email: '' });
+  const [bccError, setBccError] = useState('');
 
   useEffect(() => {
     const fetchInvoice = async () => {
@@ -66,10 +78,29 @@ function ViewInvoice() {
     fetchInvoice();
   }, [id, navigate]);
 
+  const handleAddBcc = () => {
+    if (!bccInput.email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(bccInput.email)) {
+      setBccError('Valid email required');
+      return;
+    }
+    setBccList([...bccList, { ...bccInput }]);
+    setBccInput({ name: '', email: '' });
+    setBccError('');
+  };
+  const handleRemoveBcc = (idx) => {
+    setBccList(bccList.filter((_, i) => i !== idx));
+  };
+  const handleOpenBccDialog = () => setBccDialogOpen(true);
+  const handleCloseBccDialog = () => {
+    setBccDialogOpen(false);
+    setBccError('');
+    setBccInput({ name: '', email: '' });
+  };
+
   const handleSend = async () => {
     setSending(true);
     try {
-      await invoicesApi.send(id);
+      await invoicesApi.send(id, bccList.length > 0 ? { bcc: bccList } : {});
       toast.success('Invoice sent successfully');
       const response = await invoicesApi.getById(id);
       setInvoice(response.data);
@@ -171,6 +202,15 @@ function ViewInvoice() {
             Edit
           </Button>
           <Button
+            startIcon={<AddIcon />}
+            onClick={handleOpenBccDialog}
+            sx={{ mr: 1 }}
+            color="secondary"
+            variant="outlined"
+          >
+            Add BCC
+          </Button>
+          <Button
             startIcon={<SendIcon />}
             onClick={handleSend}
             disabled={sending || invoice.status === 'paid'}
@@ -187,6 +227,57 @@ function ViewInvoice() {
           </Button>
         </Box>
       </Box>
+      {/* BCC Dialog */}
+      <Dialog open={bccDialogOpen} onClose={handleCloseBccDialog}>
+        <DialogTitle>Add BCC Recipients</DialogTitle>
+        <DialogContent>
+          {bccList.map((bcc, idx) => (
+            <Box key={idx} display="flex" alignItems="center" mb={1}>
+              <MuiTextField
+                label="Name"
+                value={bcc.name}
+                size="small"
+                sx={{ mr: 1, width: 120 }}
+                disabled
+              />
+              <MuiTextField
+                label="Email"
+                value={bcc.email}
+                size="small"
+                sx={{ mr: 1, width: 200 }}
+                disabled
+              />
+              <MuiIconButton onClick={() => handleRemoveBcc(idx)} color="error">
+                <DeleteIcon />
+              </MuiIconButton>
+            </Box>
+          ))}
+          <Box display="flex" alignItems="center" mt={2}>
+            <MuiTextField
+              label="Name (optional)"
+              value={bccInput.name}
+              onChange={e => setBccInput({ ...bccInput, name: e.target.value })}
+              size="small"
+              sx={{ mr: 1, width: 120 }}
+            />
+            <MuiTextField
+              label="Email"
+              value={bccInput.email}
+              onChange={e => setBccInput({ ...bccInput, email: e.target.value })}
+              size="small"
+              sx={{ mr: 1, width: 200 }}
+              error={!!bccError}
+              helperText={bccError}
+            />
+            <MuiIconButton onClick={handleAddBcc} color="primary">
+              <AddIcon />
+            </MuiIconButton>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseBccDialog}>Close</Button>
+        </DialogActions>
+      </Dialog>
 
       <Card>
         <CardContent>
@@ -391,4 +482,4 @@ function ViewInvoice() {
   );
 }
 
-export default ViewInvoice; 
+export default ViewInvoice;

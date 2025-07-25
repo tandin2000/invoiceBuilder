@@ -402,7 +402,7 @@ const generatePDF = async (invoice, client) => {
 };
 
 // Send email with PDF attachment
-const sendInvoiceEmail = async (client, invoice, pdfPath) => {
+const sendInvoiceEmail = async (client, invoice, pdfPath, bcc) => {
   const transporter = nodemailer.createTransport({
     // host: process.env.SMTP_HOST,
     // port: process.env.SMTP_PORT,
@@ -414,16 +414,24 @@ const sendInvoiceEmail = async (client, invoice, pdfPath) => {
     }
   });
 
+  // Use a general greeting if BCC is present, otherwise personalize
+  const greeting = (Array.isArray(bcc) && bcc.length > 0)
+    ? 'Dear Customer,'
+    : `Dear ${client.name},`;
+
   const mailOptions = {
     from: process.env.SMTP_FROM,
     to: client.email,
     subject: `Invoice ${invoice.invoiceNumber} from KPM Service Group`,
-    text: `Dear ${client.name},\n\nPlease find attached invoice ${invoice.invoiceNumber}.\n\nBest regards,\nKPM Service Group`,
+    text: `${greeting}\n\nPlease find attached invoice ${invoice.invoiceNumber}.\n\nBest regards,\nKPM Service Group`,
     attachments: [{
       filename: `invoice-${invoice.invoiceNumber}.pdf`,
       path: pdfPath
     }]
   };
+  if (Array.isArray(bcc) && bcc.length > 0) {
+    mailOptions.bcc = bcc.map(entry => entry.email ? `${entry.name ? entry.name + ' <' : ''}${entry.email}${entry.name ? '>' : ''}` : entry).join(', ');
+  }
 
   return transporter.sendMail(mailOptions);
 };
@@ -551,8 +559,8 @@ router.post('/:id/send', async (req, res) => {
     invoice.status = 'sent';
     await invoice.save();
 
-    // Send email
-    await sendInvoiceEmail(invoice.client, invoice, pdfPath);
+    // Send email (pass bcc from req.body if provided)
+    await sendInvoiceEmail(invoice.client, invoice, pdfPath, req.body.bcc);
 
     res.json({ message: 'Invoice sent successfully', pdfUrl: invoice.pdfUrl });
   } catch (error) {
