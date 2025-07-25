@@ -28,6 +28,7 @@ const logger = winston.createLogger({
 // Middleware
 const allowedOrigins = [
   'http://localhost:3000',
+  'http://localhost:5000',
   'https://invoicebuilder.onrender.com'
 ];
 
