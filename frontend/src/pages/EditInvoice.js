@@ -190,14 +190,16 @@ function EditInvoice() {
     return calculateLabourCost() + calculateMaterialsCost();
   };
 
+  // PST should be applied only to materials
   const calculatePSTValue = () => {
     const pstPercent = Number(formik.values.pst) || 0;
-    return (calculateSubtotal() * pstPercent) / 100;
+    return (calculateMaterialsCost() * pstPercent) / 100;
   };
 
+  // GST should be applied to both materials and labor
   const calculateGSTValue = () => {
     const gstPercent = Number(formik.values.gst) || 0;
-    return (calculateSubtotal() * gstPercent) / 100;
+    return ((calculateLabourCost() + calculateMaterialsCost()) * gstPercent) / 100;
   };
 
   const calculateTotal = () => {
@@ -207,7 +209,7 @@ function EditInvoice() {
     const otherCharges = Number(formik.values.otherCharges) || 0;
     return subtotal + pstValue + gstValue + otherCharges;
   };
-
+ 
   return (
     <Box>
       <Typography variant="h4" gutterBottom>

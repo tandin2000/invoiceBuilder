@@ -139,14 +139,15 @@ function ViewInvoice() {
   const subtotal = totalMaterials + totalLabour;
   const pstPercent = invoice.pst || 0;
   const gstPercent = invoice.gst || 0;
-  // PST and GST should be applied only to totalLabour
-  const pst = (totalLabour * pstPercent) / 100;
-  const gst = (totalLabour * gstPercent) / 100;
+  // PST should be applied only to materials
+  const pst = (totalMaterials * pstPercent) / 100;
+  // GST should be applied to both materials and labor
+  const gst = ((totalLabour + totalMaterials) * gstPercent) / 100;
   const otherCharges = invoice.otherCharges || 0;
   const total = subtotal + pst + gst + otherCharges;
 
   // Helper function to format datetime
-  const formatDateTime = (dateTimeString) => {
+  const formatDateTime = (dateTimeString) => { 
     if (!dateTimeString) return '';
     const date = new Date(dateTimeString);
     return date.toLocaleString();

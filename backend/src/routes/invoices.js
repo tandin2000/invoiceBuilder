@@ -359,8 +359,10 @@ const generatePDF = async (invoice, client) => {
   // PST and GST as percentages (apply only to totalLabour)
   const pstRate = invoice.pst || 0;
   const gstRate = invoice.gst || 0;
-  const pstAmount = (pstRate / 100) * totalLabour;
-  const gstAmount = (gstRate / 100) * totalLabour;
+  // PST is applied only to materials
+  const pstAmount = (pstRate / 100) * totalMaterials;
+  // GST is applied to both labour and materials
+  const gstAmount = (gstRate / 100) * (totalLabour + totalMaterials);
   const otherCharges = invoice.otherCharges || 0;
   // Subtotal is totalMaterials + totalLabour
   const subtotal = totalMaterials + totalLabour;

@@ -151,15 +151,16 @@ function CreateInvoice() {
     return calculateLabourCost() + calculateMaterialsCost();
   };
 
-  // PST and GST should be applied only to total labour
+  // PST should be applied only to materials
   const calculatePSTValue = () => {
     const pstPercent = Number(formik.values.pst) || 0;
-    return (calculateLabourCost() * pstPercent) / 100;
+    return (calculateMaterialsCost() * pstPercent) / 100;
   };
 
+  // GST should be applied to both materials and labor
   const calculateGSTValue = () => {
     const gstPercent = Number(formik.values.gst) || 0;
-    return (calculateLabourCost() * gstPercent) / 100;
+    return ((calculateLabourCost() + calculateMaterialsCost()) * gstPercent) / 100;
   };
 
   const calculateTotal = () => {
