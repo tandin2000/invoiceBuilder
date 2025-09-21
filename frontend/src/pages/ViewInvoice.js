@@ -320,6 +320,15 @@ function ViewInvoice() {
               <Typography variant="body2">Job Date: {invoice.jobDate ? new Date(invoice.jobDate).toLocaleDateString() : ''}</Typography>
               <Typography variant="body2">Job Start: {invoice.jobStart ? formatDateTime(invoice.jobStart) : ''}</Typography>
               <Typography variant="body2">Job Finish: {invoice.jobFinish ? formatDateTime(invoice.jobFinish) : ''}</Typography>
+              {invoice.jobAddress && (invoice.jobAddress.location || invoice.jobAddress.city || invoice.jobAddress.country || invoice.jobAddress.postalCode) && (
+                <>
+                  <Typography variant="subtitle2" fontWeight="bold" sx={{ mt: 1 }}>Job Address</Typography>
+                  {invoice.jobAddress.location && <Typography variant="body2">Location: {invoice.jobAddress.location}</Typography>}
+                  {invoice.jobAddress.city && <Typography variant="body2">City: {invoice.jobAddress.city}</Typography>}
+                  {invoice.jobAddress.country && <Typography variant="body2">Country: {invoice.jobAddress.country}</Typography>}
+                  {invoice.jobAddress.postalCode && <Typography variant="body2">Postal Code: {invoice.jobAddress.postalCode}</Typography>}
+                </>
+              )}
             </Grid>
           </Grid>
 

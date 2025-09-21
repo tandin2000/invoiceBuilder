@@ -13,7 +13,6 @@ import { DataGrid } from '@mui/x-data-grid';
 import {
   Add as AddIcon,
   Edit as EditIcon,
-  Delete as DeleteIcon,
   MoreVert as MoreVertIcon,
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
@@ -151,16 +150,6 @@ function Invoices() {
           >
             <MoreVertIcon />
           </IconButton>
-          <IconButton
-            size="small"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleDelete(params.row._id)
-            }}
-            color="error"
-          >
-            <DeleteIcon />
-          </IconButton>
         </Box>
       ),
     },
@@ -183,17 +172,6 @@ function Invoices() {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm('Are you sure you want to delete this invoice?')) {
-      try {
-        await invoicesApi.delete(id);
-        toast.success('Invoice deleted successfully');
-        fetchInvoices();
-      } catch (error) {
-        toast.error(error.message);
-      }
-    }
-  };
 
   return (
     <Box>

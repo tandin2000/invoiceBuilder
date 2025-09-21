@@ -49,6 +49,12 @@ const validationSchema = yup.object({
   gst: yup.number().min(0),
   otherCharges: yup.number().min(0),
   workOrderedBy: yup.string().required('Work ordered by is required'),
+  jobAddress: yup.object({
+    location: yup.string(),
+    city: yup.string(),
+    country: yup.string(),
+    postalCode: yup.string(),
+  }),
 });
 
 function CreateInvoice() {
@@ -91,6 +97,12 @@ function CreateInvoice() {
       gst: 0,
       otherCharges: 0,
       workOrderedBy: '',
+      jobAddress: {
+        location: '',
+        city: '',
+        country: '',
+        postalCode: '',
+      },
     },
     enableReinitialize: true,
     validationSchema,
@@ -301,7 +313,50 @@ function CreateInvoice() {
                       value={formik.values.jobLocation}
                       onChange={formik.handleChange}
                       error={formik.touched.jobLocation && Boolean(formik.errors.jobLocation)}
-                      helperText={formik.touched.jobLocation && formik.errors.jobLocation}
+                    />
+                  </Grid>
+                  <Grid item xs={12} md={6}>
+                    <TextField
+                      fullWidth
+                      name="jobAddress.location"
+                      label="Job Address - Location"
+                      value={formik.values.jobAddress.location}
+                      onChange={formik.handleChange}
+                      error={formik.touched.jobAddress?.location && Boolean(formik.errors.jobAddress?.location)}
+                      helperText={formik.touched.jobAddress?.location && formik.errors.jobAddress?.location}
+                    />
+                  </Grid>
+                  <Grid item xs={12} md={6}>
+                    <TextField
+                      fullWidth
+                      name="jobAddress.city"
+                      label="Job Address - City"
+                      value={formik.values.jobAddress.city}
+                      onChange={formik.handleChange}
+                      error={formik.touched.jobAddress?.city && Boolean(formik.errors.jobAddress?.city)}
+                      helperText={formik.touched.jobAddress?.city && formik.errors.jobAddress?.city}
+                    />
+                  </Grid>
+                  <Grid item xs={12} md={6}>
+                    <TextField
+                      fullWidth
+                      name="jobAddress.country"
+                      label="Job Address - Country"
+                      value={formik.values.jobAddress.country}
+                      onChange={formik.handleChange}
+                      error={formik.touched.jobAddress?.country && Boolean(formik.errors.jobAddress?.country)}
+                      helperText={formik.touched.jobAddress?.country && formik.errors.jobAddress?.country}
+                    />
+                  </Grid>
+                  <Grid item xs={12} md={6}>
+                    <TextField
+                      fullWidth
+                      name="jobAddress.postalCode"
+                      label="Job Address - Postal Code"
+                      value={formik.values.jobAddress.postalCode}
+                      onChange={formik.handleChange}
+                      error={formik.touched.jobAddress?.postalCode && Boolean(formik.errors.jobAddress?.postalCode)}
+                      helperText={formik.touched.jobAddress?.postalCode && formik.errors.jobAddress?.postalCode}
                     />
                   </Grid>
                   <Grid item xs={12} md={6}>

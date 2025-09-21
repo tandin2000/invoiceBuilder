@@ -72,6 +72,34 @@ const generatePDF = async (invoice, client) => {
     if (client.address.country) { doc.text(client.address.country, leftX + 20, toY); toY += 12; }
   }
 
+  // --- JOB ADDRESS SECTION (in the yellow highlighted area) ---
+  let jobAddressY = clientY;
+  let jobAddressX = 175;
+  let jobAddressColWidth = colWidth;
+  
+  // Only show Job Address section if there's data
+  if (invoice.jobAddress && (invoice.jobAddress.location || invoice.jobAddress.city || invoice.jobAddress.country || invoice.jobAddress.postalCode)) {
+    doc.font('Helvetica-Bold').fontSize(10).text('Job Address', jobAddressX, jobAddressY);
+    let jobAddressTextY = jobAddressY + 12;
+    
+    if (invoice.jobAddress.location) {
+      doc.font('Helvetica').fontSize(11).text(`${invoice.jobAddress.location}`, jobAddressX+12, jobAddressTextY, { width: 100, align: 'left' });
+      // Calculate lines based on 20 characters per line
+      const locationLines = Math.ceil(`${invoice.jobAddress.location}`.length / 20);
+      jobAddressTextY += locationLines * 12;
+    }
+    if (invoice.jobAddress.city) {
+      doc.font('Helvetica').fontSize(11).text(`${invoice.jobAddress.city}, ${invoice.jobAddress.postalCode}`, jobAddressX+12, jobAddressTextY, { width: 100, align: 'left' });
+      const cityLines = Math.ceil(`${invoice.jobAddress.city}, ${invoice.jobAddress.postalCode}`.length / 20);
+      jobAddressTextY += cityLines * 12;
+    }
+    if (invoice.jobAddress.country) {
+      doc.font('Helvetica').fontSize(11).text(`${invoice.jobAddress.country}`, jobAddressX+12, jobAddressTextY, { width: 100, align: 'left' });
+      const countryLines = Math.ceil(`${invoice.jobAddress.country}`.length / 20);
+      jobAddressTextY += countryLines * 12;
+    }
+  }
+
   // --- DETAILS TABLE ---
   let detailsY = topY;
   const detailLabels = [
@@ -394,6 +422,13 @@ const generatePDF = async (invoice, client) => {
     doc.text(totalsValues[i], totalsTableX + totalsLabelColWidth + 5, totalsTableY + i * totalsTableRowHeight + 3, { width: totalsValueColWidth - 10, align: 'right' });
   }
 
+  // --- GST AND TSBC INFORMATION AT BOTTOM ---
+  const pageHeight = 792; // A4 page height in points
+  const bottomY = pageHeight - 15; // 15 points from bottom
+  
+  doc.font('Helvetica-Bold').fontSize(7).text('GST: 735508293RT0001', leftX , bottomY);
+  doc.font('Helvetica-Bold').fontSize(12).text('TSBC: LGA0212303', rightX + colWidth - 150, bottomY);
+
   doc.end();
   return new Promise((resolve, reject) => {
     stream.on('finish', () => resolve(filePath));
@@ -423,7 +458,7 @@ const sendInvoiceEmail = async (client, invoice, pdfPath, bcc) => {
     from: process.env.SMTP_FROM,
     to: client.email,
     subject: `Invoice ${invoice.invoiceNumber} from KPM Service Group`,
-    text: `${greeting}\n\nPlease find attached invoice ${invoice.invoiceNumber}.\n\nBest regards,\nKPM Service Group`,
+    text: `${greeting}\n\nPlease find attached invoice #${invoice.invoiceNumber} for your reference.\n\nThank you for choosing KPM Service Group. Should you have any questions, feel free to contact us.\n\nBest regards,\nKPM Service Group`,
     attachments: [{
       filename: `invoice-${invoice.invoiceNumber}.pdf`,
       path: pdfPath
@@ -521,27 +556,6 @@ router.put('/:id', validateInvoice, async (req, res) => {
   }
 });
 
-// Delete invoice
-router.delete('/:id', async (req, res) => {
-  try {
-    const invoice = await Invoice.findByIdAndDelete(req.params.id);
-    if (!invoice) {
-      return res.status(404).json({ message: 'Invoice not found' });
-    }
-    
-    // Delete associated PDF if it exists
-    if (invoice.pdfUrl) {
-      const pdfPath = path.join(__dirname, '../uploads', `invoice-${invoice.invoiceNumber}.pdf`);
-      if (fs.existsSync(pdfPath)) {
-        fs.unlinkSync(pdfPath);
-      }
-    }
-    
-    res.json({ message: 'Invoice deleted successfully' });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
 
 // Generate and send invoice
 router.post('/:id/send', async (req, res) => {

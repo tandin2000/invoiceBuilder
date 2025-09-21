@@ -90,6 +90,12 @@ const invoiceSchema = new mongoose.Schema({
   otherCharges: { type: Number, min: 0, default: 0 },
   workOrderedBy: { type: String, trim: true },
   footerNote: { type: String, trim: true, default: 'THANK YOU FOR THE BUSINESS' },
+  jobAddress: {
+    location: { type: String, trim: true },
+    city: { type: String, trim: true },
+    country: { type: String, trim: true },
+    postalCode: { type: String, trim: true }
+  },
 });
 
 // Calculate totals before validation using labour and materials
