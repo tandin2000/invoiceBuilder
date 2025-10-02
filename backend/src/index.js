@@ -52,6 +52,27 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 // Serve static files from the React frontend build
 app.use(express.static(path.join(__dirname, '../../frontend/build')));
 
+// Environment variable validation
+logger.info('Environment Variables Check', {
+  nodeEnv: process.env.NODE_ENV || 'NOT_SET',
+  port: process.env.PORT || 'NOT_SET',
+  mongodbUri: process.env.MONGODB_URI ? 'SET' : 'NOT_SET',
+  smtpUser: process.env.SMTP_USER ? 'SET' : 'NOT_SET',
+  smtpPass: process.env.SMTP_PASS ? 'SET' : 'NOT_SET',
+  smtpFrom: process.env.SMTP_FROM ? 'SET' : 'NOT_SET'
+});
+
+// Validate required environment variables
+const requiredEnvVars = ['MONGODB_URI', 'SMTP_USER', 'SMTP_PASS', 'SMTP_FROM'];
+const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar]);
+
+if (missingEnvVars.length > 0) {
+  logger.error('Missing required environment variables', {
+    missing: missingEnvVars
+  });
+  process.exit(1);
+}
+
 // Database connection
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => logger.info('Connected to MongoDB'))

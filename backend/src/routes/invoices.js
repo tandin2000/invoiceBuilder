@@ -5,9 +5,33 @@ const PDFDocument = require('pdfkit');
 const fs = require('fs');
 const path = require('path');
 const nodemailer = require('nodemailer');
+const winston = require('winston');
 const Invoice = require('../models/Invoice');
 const Client = require('../models/Client');
 const Setting = require('../models/Setting');
+
+// Configure logger for Invoice module
+const logger = winston.createLogger({
+  level: 'info',
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.json()
+  ),
+  transports: [
+    new winston.transports.File({ filename: 'invoice-email.log' }),
+    new winston.transports.Console({
+      format: winston.format.simple()
+    })
+  ]
+});
+
+// Log environment variables (without exposing sensitive data)
+logger.info('Invoice Module - Environment Check', {
+  smtpUser: process.env.SMTP_USER ? 'SET' : 'NOT_SET',
+  smtpPass: process.env.SMTP_PASS ? 'SET' : 'NOT_SET',
+  smtpFrom: process.env.SMTP_FROM ? 'SET' : 'NOT_SET',
+  nodeEnv: process.env.NODE_ENV || 'NOT_SET'
+});
 
 // Frontend should send 'labour' and 'materials' arrays, not 'lineItems'.
 const validateInvoice = [
@@ -438,6 +462,15 @@ const generatePDF = async (invoice, client) => {
 
 // Send email with PDF attachment
 const sendInvoiceEmail = async (client, invoice, pdfPath, bcc) => {
+  logger.info('Starting invoice email send process', {
+    invoiceNumber: invoice.invoiceNumber,
+    clientEmail: client.email,
+    clientName: client.name,
+    pdfPath: pdfPath,
+    hasBcc: Array.isArray(bcc) && bcc.length > 0,
+    bccCount: Array.isArray(bcc) ? bcc.length : 0
+  });
+
   const transporter = nodemailer.createTransport({
     // host: process.env.SMTP_HOST,
     // port: process.env.SMTP_PORT,
@@ -448,6 +481,20 @@ const sendInvoiceEmail = async (client, invoice, pdfPath, bcc) => {
       pass: process.env.SMTP_PASS
     }
   });
+
+  // Test transporter configuration
+  try {
+    await transporter.verify();
+    logger.info('Invoice email transporter verified successfully');
+  } catch (error) {
+    logger.error('Invoice email transporter verification failed', {
+      error: error.message,
+      code: error.code,
+      command: error.command,
+      response: error.response
+    });
+    throw error;
+  }
 
   // Use a general greeting if BCC is present, otherwise personalize
   const greeting = (Array.isArray(bcc) && bcc.length > 0)
@@ -464,11 +511,46 @@ const sendInvoiceEmail = async (client, invoice, pdfPath, bcc) => {
       path: pdfPath
     }]
   };
+  
   if (Array.isArray(bcc) && bcc.length > 0) {
     mailOptions.bcc = bcc.map(entry => entry.email ? `${entry.name ? entry.name + ' <' : ''}${entry.email}${entry.name ? '>' : ''}` : entry).join(', ');
   }
 
-  return transporter.sendMail(mailOptions);
+  logger.info('Attempting to send invoice email', {
+    from: process.env.SMTP_FROM,
+    to: client.email,
+    subject: mailOptions.subject,
+    hasAttachment: true,
+    attachmentPath: pdfPath,
+    bcc: mailOptions.bcc || 'none'
+  });
+
+  try {
+    const result = await transporter.sendMail(mailOptions);
+    
+    logger.info('Invoice email sent successfully', {
+      invoiceNumber: invoice.invoiceNumber,
+      messageId: result.messageId,
+      response: result.response,
+      accepted: result.accepted,
+      rejected: result.rejected,
+      clientEmail: client.email
+    });
+
+    return result;
+  } catch (error) {
+    logger.error('Failed to send invoice email', {
+      invoiceNumber: invoice.invoiceNumber,
+      clientEmail: client.email,
+      error: error.message,
+      code: error.code,
+      command: error.command,
+      response: error.response,
+      responseCode: error.responseCode,
+      stack: error.stack
+    });
+    throw error;
+  }
 };
 
 // Get all invoices
@@ -559,25 +641,66 @@ router.put('/:id', validateInvoice, async (req, res) => {
 
 // Generate and send invoice
 router.post('/:id/send', async (req, res) => {
+  logger.info('Invoice send request received', {
+    invoiceId: req.params.id,
+    ip: req.ip,
+    userAgent: req.get('User-Agent'),
+    timestamp: new Date().toISOString(),
+    hasBcc: !!req.body.bcc
+  });
+
   try {
     const invoice = await Invoice.findById(req.params.id).populate('client');
     if (!invoice) {
+      logger.warn('Invoice not found for send request', {
+        invoiceId: req.params.id
+      });
       return res.status(404).json({ message: 'Invoice not found' });
     }
 
+    logger.info('Invoice found for sending', {
+      invoiceNumber: invoice.invoiceNumber,
+      clientEmail: invoice.client.email,
+      clientName: invoice.client.name
+    });
+
     // Always generate/update PDF
+    logger.info('Generating PDF for invoice', {
+      invoiceNumber: invoice.invoiceNumber
+    });
+    
     const pdfPath = await generatePDF(invoice, invoice.client);
+    
+    logger.info('PDF generated successfully', {
+      invoiceNumber: invoice.invoiceNumber,
+      pdfPath: pdfPath
+    });
     
     // Update invoice with PDF URL
     invoice.pdfUrl = `/uploads/invoice-${invoice.invoiceNumber}.pdf`;
     invoice.status = 'sent';
     await invoice.save();
 
+    logger.info('Invoice status updated to sent', {
+      invoiceNumber: invoice.invoiceNumber,
+      pdfUrl: invoice.pdfUrl
+    });
+
     // Send email (pass bcc from req.body if provided)
     await sendInvoiceEmail(invoice.client, invoice, pdfPath, req.body.bcc);
 
+    logger.info('Invoice send process completed successfully', {
+      invoiceNumber: invoice.invoiceNumber,
+      clientEmail: invoice.client.email
+    });
+
     res.json({ message: 'Invoice sent successfully', pdfUrl: invoice.pdfUrl });
   } catch (error) {
+    logger.error('Invoice send process failed', {
+      invoiceId: req.params.id,
+      error: error.message,
+      stack: error.stack
+    });
     res.status(500).json({ message: error.message });
   }
 });
