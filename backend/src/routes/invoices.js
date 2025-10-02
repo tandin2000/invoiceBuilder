@@ -5,6 +5,7 @@ const PDFDocument = require('pdfkit');
 const fs = require('fs');
 const path = require('path');
 const nodemailer = require('nodemailer');
+const archiver = require('archiver');
 const Invoice = require('../models/Invoice');
 const Client = require('../models/Client');
 const Setting = require('../models/Setting');
@@ -479,6 +480,80 @@ router.get('/', async (req, res) => {
       .sort({ createdAt: -1 });
     res.json(invoices);
   } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Bulk download invoices by date range
+router.get('/bulk-download', async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    
+    if (!startDate || !endDate) {
+      return res.status(400).json({ message: 'Start date and end date are required' });
+    }
+
+    // Parse dates
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999); // Include entire end date
+
+    // Find invoices in date range
+    const invoices = await Invoice.find({
+      issueDate: {
+        $gte: start,
+        $lte: end
+      }
+    }).populate('client').sort({ issueDate: 1 });
+
+    if (invoices.length === 0) {
+      return res.status(404).json({ message: 'No invoices found for the specified date range' });
+    }
+
+    // Create ZIP file
+    const zipFileName = `invoices-${startDate}-to-${endDate}.zip`;
+    const zipFilePath = path.join(__dirname, '../uploads', zipFileName);
+    
+    // Create output stream
+    const output = fs.createWriteStream(zipFilePath);
+    const archive = archiver('zip', { zlib: { level: 9 } });
+
+    // Handle archive events
+    archive.on('error', (err) => {
+      throw err;
+    });
+
+    archive.pipe(output);
+
+    // Generate PDFs and add to ZIP
+    for (const invoice of invoices) {
+      try {
+        const pdfPath = await generatePDF(invoice, invoice.client);
+        const pdfFileName = `invoice-${invoice.invoiceNumber}.pdf`;
+        archive.file(pdfPath, { name: pdfFileName });
+      } catch (error) {
+        console.error(`Error generating PDF for invoice ${invoice.invoiceNumber}:`, error);
+      }
+    }
+
+    // Finalize the archive
+    await archive.finalize();
+
+    // Wait for the output stream to finish
+    output.on('close', () => {
+      res.download(zipFilePath, zipFileName, (err) => {
+        if (err) {
+          console.error('Error downloading ZIP file:', err);
+        }
+        // Clean up the ZIP file after download
+        fs.unlink(zipFilePath, (unlinkErr) => {
+          if (unlinkErr) console.error('Error deleting ZIP file:', unlinkErr);
+        });
+      });
+    });
+
+  } catch (error) {
+    console.error('Error in bulk download:', error);
     res.status(500).json({ message: error.message });
   }
 });
