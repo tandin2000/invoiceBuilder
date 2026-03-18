@@ -450,7 +450,7 @@ const generatePDF = async (invoice, client) => {
   const pageHeight = 792; // A4 page height in points
   const bottomY = pageHeight - 15; // 15 points from bottom
   
-  doc.font('Helvetica-Bold').fontSize(7).text('GST: 735508293RT0001', leftX , bottomY);
+  doc.font('Helvetica-Bold').fontSize(7).text('GST: 781743604BC0001', leftX , bottomY);
   doc.font('Helvetica-Bold').fontSize(12).text('TSBC: LGA0212303', rightX + colWidth - 150, bottomY);
 
   doc.end();
