@@ -154,7 +154,7 @@ function Dashboard() {
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Total Amount"
-            value={stats.totalAmount}
+            value={typeof stats.totalAmount === 'number' ? Number(stats.totalAmount).toFixed(2) : stats.totalAmount}
             icon={<MoneyIcon />}
             color="#1976d2"
           />
@@ -162,7 +162,7 @@ function Dashboard() {
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Draft Amount"
-            value={stats.draftAmount}
+            value={typeof stats.draftAmount === 'number' ? Number(stats.draftAmount).toFixed(2) : stats.draftAmount}
             icon={<ReceiptIcon />}
             color="#ed6c02"
           />
@@ -170,7 +170,8 @@ function Dashboard() {
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Payment Awaiting"
-            value={stats.sentAmount}
+            value={typeof stats.sentAmount === 'number' ? Number(stats.sentAmount).toFixed(2) : stats.sentAmount}
+       
             icon={<ReceiptIcon />}
             color="#2e7d32"
           />
@@ -178,7 +179,7 @@ function Dashboard() {
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Amount Paid"
-            value={stats.paidAmount}
+            value={typeof stats.paidAmount === 'number' ? Number(stats.paidAmount).toFixed(2) : stats.paidAmount}
             icon={<MoneyIcon />}
             color="#d32f2f"
           />

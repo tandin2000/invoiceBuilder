@@ -3,7 +3,8 @@ const mongoose = require('mongoose');
 // New Labour Schema
 const labourSchema = new mongoose.Schema({
   notes: { type: String, trim: true },
-  type: { type: String, enum: ['FIRST HOUR', 'ADDITIONAL HOUR', 'SECOND LABOUR'], required: true },
+  type: { type: String, enum: ['FIRST HOUR', 'ADDITIONAL HOUR', 'SECOND LABOUR', 'CUSTOM'], required: true },
+  customTypeLabel: { type: String, trim: true, default: '' },
   hrs: { type: Number, min: 0, required: true },
   rate: { type: Number, min: 0, required: true },
   amount: { type: Number, min: 0, required: true }
@@ -100,6 +101,11 @@ const invoiceSchema = new mongoose.Schema({
 
 // Calculate totals before validation using labour and materials
 invoiceSchema.pre('validate', function(next) {
+  for (const l of this.labour || []) {
+    if (l.type === 'CUSTOM' && !(l.customTypeLabel && String(l.customTypeLabel).trim())) {
+      return next(new Error('Custom labour type requires a description'));
+    }
+  }
   // Calculate subtotal as sum of all labour.amount and materials.amount
   const labourSubtotal = (this.labour || []).reduce((sum, l) => sum + (l.amount || 0), 0);
   const materialsSubtotal = (this.materials || []).reduce((sum, m) => sum + (m.amount || 0), 0);

@@ -41,6 +41,7 @@ import {
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
 import { invoicesApi } from '../services/api';
+import { formatLabourTypeDisplay } from '../constants/labourTypes';
 
 const statusColors = {
   draft: 'default',
@@ -389,7 +390,7 @@ function ViewInvoice() {
                   {(invoice.labour || []).map((lab, idx) => (
                     <TableRow key={idx}>
                       <TableCell>{lab.notes}</TableCell>
-                      <TableCell>{lab.type}</TableCell>
+                      <TableCell>{formatLabourTypeDisplay(lab)}</TableCell>
                       <TableCell>{lab.hrs}</TableCell>
                       <TableCell>${lab.rate?.toFixed(2)}</TableCell>
                       <TableCell>${lab.amount?.toFixed(2)}</TableCell>
