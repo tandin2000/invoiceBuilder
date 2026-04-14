@@ -10,11 +10,17 @@ import {
   CardActions,
   Button,
   CircularProgress,
+  TextField,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from '@mui/material';
 import {
   AttachMoney as MoneyIcon,
   Receipt as ReceiptIcon,
   People as PeopleIcon,
+  Download as DownloadIcon,
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
 import { invoicesApi, clientsApi } from '../services/api';
@@ -31,6 +37,12 @@ function Dashboard() {
     paidAmount: 0,
   });
   const [recentInvoices, setRecentInvoices] = useState([]);
+  const [bulkDownloadOpen, setBulkDownloadOpen] = useState(false);
+  const [bulkDownloadLoading, setBulkDownloadLoading] = useState(false);
+  const [dateRange, setDateRange] = useState({
+    startDate: '',
+    endDate: ''
+  });
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -66,6 +78,42 @@ function Dashboard() {
 
     fetchDashboardData();
   }, []);
+
+  const handleBulkDownload = async () => {
+    if (!dateRange.startDate || !dateRange.endDate) {
+      toast.error('Please select both start and end dates');
+      return;
+    }
+
+    if (new Date(dateRange.startDate) > new Date(dateRange.endDate)) {
+      toast.error('Start date must be before end date');
+      return;
+    }
+
+    setBulkDownloadLoading(true);
+    try {
+      const response = await invoicesApi.bulkDownload(dateRange.startDate, dateRange.endDate);
+      
+      // Create blob and download
+      const blob = new Blob([response.data], { type: 'application/zip' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `invoices-${dateRange.startDate}-to-${dateRange.endDate}.zip`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      toast.success('Bulk download completed successfully');
+      setBulkDownloadOpen(false);
+      setDateRange({ startDate: '', endDate: '' });
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to download invoices');
+    } finally {
+      setBulkDownloadLoading(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -106,7 +154,7 @@ function Dashboard() {
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Total Amount"
-            value={stats.totalAmount}
+            value={typeof stats.totalAmount === 'number' ? Number(stats.totalAmount).toFixed(2) : stats.totalAmount}
             icon={<MoneyIcon />}
             color="#1976d2"
           />
@@ -114,7 +162,7 @@ function Dashboard() {
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Draft Amount"
-            value={stats.draftAmount}
+            value={typeof stats.draftAmount === 'number' ? Number(stats.draftAmount).toFixed(2) : stats.draftAmount}
             icon={<ReceiptIcon />}
             color="#ed6c02"
           />
@@ -122,7 +170,8 @@ function Dashboard() {
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Payment Awaiting"
-            value={stats.sentAmount}
+            value={typeof stats.sentAmount === 'number' ? Number(stats.sentAmount).toFixed(2) : stats.sentAmount}
+       
             icon={<ReceiptIcon />}
             color="#2e7d32"
           />
@@ -130,16 +179,26 @@ function Dashboard() {
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Amount Paid"
-            value={stats.paidAmount}
+            value={typeof stats.paidAmount === 'number' ? Number(stats.paidAmount).toFixed(2) : stats.paidAmount}
             icon={<MoneyIcon />}
             color="#d32f2f"
           />
         </Grid>
       </Grid>
 
-      <Typography variant="h5" gutterBottom>
-        Recent Invoices
-      </Typography>
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+        <Typography variant="h5" gutterBottom>
+          Recent Invoices
+        </Typography>
+        <Button
+          variant="contained"
+          startIcon={<DownloadIcon />}
+          onClick={() => setBulkDownloadOpen(true)}
+          sx={{ ml: 2 }}
+        >
+          Bulk Download
+        </Button>
+      </Box>
 
       <Grid container spacing={2}>
         {recentInvoices.map((invoice) => (
@@ -177,6 +236,45 @@ function Dashboard() {
           No recent invoices found
         </Typography>
       )}
+
+      {/* Bulk Download Dialog */}
+      <Dialog open={bulkDownloadOpen} onClose={() => setBulkDownloadOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Bulk Download Invoices</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
+            Select a date range to download all invoices as a ZIP file.
+          </Typography>
+          <Box sx={{ display: 'flex', gap: 2, flexDirection: 'column' }}>
+            <TextField
+              label="Start Date"
+              type="date"
+              value={dateRange.startDate}
+              onChange={(e) => setDateRange({ ...dateRange, startDate: e.target.value })}
+              InputLabelProps={{ shrink: true }}
+              fullWidth
+            />
+            <TextField
+              label="End Date"
+              type="date"
+              value={dateRange.endDate}
+              onChange={(e) => setDateRange({ ...dateRange, endDate: e.target.value })}
+              InputLabelProps={{ shrink: true }}
+              fullWidth
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setBulkDownloadOpen(false)}>Cancel</Button>
+          <Button
+            onClick={handleBulkDownload}
+            variant="contained"
+            disabled={bulkDownloadLoading}
+            startIcon={bulkDownloadLoading ? <CircularProgress size={20} /> : <DownloadIcon />}
+          >
+            {bulkDownloadLoading ? 'Downloading...' : 'Download ZIP'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

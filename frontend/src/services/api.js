@@ -28,6 +28,7 @@ export const invoicesApi = {
   send: (id, payload = {}) => api.post(`/invoices/${id}/send`, payload),
   download: (id) => api.get(`/invoices/${id}/download`, { responseType: 'blob' }),
   updateStatus: (id, status) => api.patch(`/invoices/${id}/status`, { status }),
+  bulkDownload: (startDate, endDate) => api.get(`/invoices/bulk-download?startDate=${startDate}&endDate=${endDate}`, { responseType: 'blob' }),
 };
 
 // Settings API

@@ -20,6 +20,7 @@ import { useFormik } from 'formik';
 import * as yup from 'yup';
 import { toast } from 'react-toastify';
 import { clientsApi, invoicesApi, settingsApi } from '../services/api';
+import { LABOUR_TYPE_OPTIONS, defaultLabourLine } from '../constants/labourTypes';
 
 const validationSchema = yup.object({
   client: yup.string().required('Client is required'),
@@ -35,6 +36,14 @@ const validationSchema = yup.object({
     yup.object({
       notes: yup.string(),
       type: yup.string().required(),
+      customTypeLabel: yup
+        .string()
+        .trim()
+        .when('type', {
+          is: 'CUSTOM',
+          then: (schema) => schema.required('Describe the custom labour type'),
+          otherwise: (schema) => schema.notRequired(),
+        }),
       hrs: yup.number().min(0).required(),
       rate: yup.number().min(0).required(),
     })
@@ -92,7 +101,7 @@ function EditInvoice() {
       jobFinish: '',
       jobType: [],
       descriptionOfWork: '',
-      labour: [{ notes: '', type: 'FIRST HOUR', hrs: 1, rate: 0 }],
+      labour: [defaultLabourLine()],
       materials: [{ qty: 1, material: '' }],
       pst: 0,
       gst: 0,
@@ -113,9 +122,10 @@ function EditInvoice() {
         // Add amount to each labour item
         const payload = {
           ...values,
-          labour: (values.labour || []).map(l => ({
+          labour: (values.labour || []).map((l) => ({
             ...l,
-            amount: Number(l.hrs) * Number(l.rate)
+            customTypeLabel: l.type === 'CUSTOM' ? (l.customTypeLabel || '').trim() : '',
+            amount: Number(l.hrs) * Number(l.rate),
           })),
         };
         await invoicesApi.update(id, payload);
@@ -149,7 +159,10 @@ function EditInvoice() {
           jobFinish: invoice.jobFinish ? new Date(invoice.jobFinish).toISOString().slice(0, 16) : '',
           jobType: invoice.jobType || [],
           descriptionOfWork: invoice.descriptionOfWork || '',
-          labour: invoice.labour || [{ notes: '', type: 'FIRST HOUR', hrs: 1, rate: 0 }],
+          labour: (invoice.labour || [defaultLabourLine()]).map((l) => ({
+            ...l,
+            customTypeLabel: l.customTypeLabel || '',
+          })),
           materials: invoice.materials || [{ qty: 1, material: '' }],
           pst: invoice.pst || 0,
           gst: invoice.gst || 0,
@@ -467,7 +480,13 @@ function EditInvoice() {
                           name={`labour.${index}.type`}
                           label="Type"
                           value={item.type}
-                          onChange={formik.handleChange}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            formik.setFieldValue(`labour.${index}.type`, v);
+                            if (v !== 'CUSTOM') {
+                              formik.setFieldValue(`labour.${index}.customTypeLabel`, '');
+                            }
+                          }}
                           error={
                             formik.touched.labour?.[index]?.type &&
                             Boolean(formik.errors.labour?.[index]?.type)
@@ -477,11 +496,32 @@ function EditInvoice() {
                             formik.errors.labour?.[index]?.type
                           }
                         >
-                          <MenuItem value="FIRST HOUR">FIRST HOUR</MenuItem>
-                          <MenuItem value="ADDITIONAL HOUR">ADDITIONAL HOUR</MenuItem>
-                          <MenuItem value="SECOND LABOUR">SECOND LABOUR</MenuItem>
+                          {LABOUR_TYPE_OPTIONS.map((opt) => (
+                            <MenuItem key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </MenuItem>
+                          ))}
                         </TextField>
                       </Grid>
+                      {item.type === 'CUSTOM' && (
+                        <Grid item xs={12}>
+                          <TextField
+                            fullWidth
+                            name={`labour.${index}.customTypeLabel`}
+                            label="Custom labour type"
+                            value={item.customTypeLabel || ''}
+                            onChange={formik.handleChange}
+                            error={
+                              formik.touched.labour?.[index]?.customTypeLabel &&
+                              Boolean(formik.errors.labour?.[index]?.customTypeLabel)
+                            }
+                            helperText={
+                              formik.touched.labour?.[index]?.customTypeLabel &&
+                              formik.errors.labour?.[index]?.customTypeLabel
+                            }
+                          />
+                        </Grid>
+                      )}
                       <Grid item xs={12} md={2}>
                         <TextField
                           fullWidth
@@ -533,7 +573,9 @@ function EditInvoice() {
 
                 <Button
                   startIcon={<AddIcon />}
-                  onClick={() => formik.setFieldValue('labour', [...formik.values.labour, { notes: '', type: 'FIRST HOUR', hrs: 1, rate: 0 }])}
+                  onClick={() =>
+                    formik.setFieldValue('labour', [...formik.values.labour, defaultLabourLine()])
+                  }
                   sx={{ mb: 3 }}
                 >
                   Add Labour

@@ -6,6 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const nodemailer = require('nodemailer');
 const winston = require('winston');
+const archiver = require('archiver');
 const Invoice = require('../models/Invoice');
 const Client = require('../models/Client');
 const Setting = require('../models/Setting');
@@ -32,6 +33,20 @@ logger.info('Invoice Module - Environment Check', {
   smtpFrom: process.env.SMTP_FROM ? 'SET' : 'NOT_SET',
   nodeEnv: process.env.NODE_ENV || 'NOT_SET'
 });
+const LABOUR_TYPES = ['FIRST HOUR', 'ADDITIONAL HOUR', 'SECOND LABOUR', 'CUSTOM'];
+
+function labourTypeForPdf(row) {
+  if (!row || !row.type) return '';
+  if (row.type === 'CUSTOM') {
+    return row.customTypeLabel ? String(row.customTypeLabel).trim() : '';
+  }
+  const labels = {
+    'FIRST HOUR': 'First hour',
+    'ADDITIONAL HOUR': 'Additional hour',
+    'SECOND LABOUR': 'Second labour',
+  };
+  return labels[row.type] || row.type;
+}
 
 // Frontend should send 'labour' and 'materials' arrays, not 'lineItems'.
 const validateInvoice = [
@@ -39,7 +54,17 @@ const validateInvoice = [
   body('issueDate').isISO8601().withMessage('Valid issue date is required'),
   body('dueDate').isISO8601().withMessage('Valid due date is required'),
   body('labour').isArray().withMessage('Labour must be an array'),
-  body('labour.*.type').notEmpty().withMessage('Labour type is required'),
+  body('labour.*.type').notEmpty().withMessage('Labour type is required').isIn(LABOUR_TYPES).withMessage('Invalid labour type'),
+  body('labour.*.customTypeLabel').optional().isString(),
+  body('labour').custom((labourArr) => {
+    if (!Array.isArray(labourArr)) return true;
+    for (const l of labourArr) {
+      if (l && l.type === 'CUSTOM' && (!l.customTypeLabel || !String(l.customTypeLabel).trim())) {
+        throw new Error('Custom labour type requires a description');
+      }
+    }
+    return true;
+  }),
   body('labour.*.hrs').isFloat({ min: 0 }).withMessage('Labour hours must be positive'),
   body('labour.*.rate').isFloat({ min: 0 }).withMessage('Labour rate must be positive'),
   body('labour.*.amount').isFloat({ min: 0 }).withMessage('Labour amount must be positive'),
@@ -83,42 +108,51 @@ const generatePDF = async (invoice, client) => {
 
   // --- CLIENT SECTION ---
   let clientY = topY + 90;
+  const toTextX = leftX + 6;
+  const jobAddressX = 189;
+  const toDetailsGutter = 8;
+  const toBlockWidth = Math.max(80, jobAddressX - toTextX - toDetailsGutter);
+
   doc.font('Helvetica-Bold').fontSize(10).text('To', leftX, clientY);
-  let toY = clientY + 12;
-  doc.font('Helvetica').fontSize(11).text(client.name || '', leftX + 20, toY);
-  toY += 12;
-  if (client.company) { doc.text(client.company, leftX + 20, toY); toY += 12; }
+  let toY = clientY + 10;
+  doc.font('Helvetica').fontSize(11);
+  const toTextOpts = { width: toBlockWidth, align: 'left', lineGap: 0 };
+  const toLine = (str) => {
+    const s = (str || '').trim();
+    if (!s) return;
+    doc.text(s, toTextX, toY, toTextOpts);
+    toY = doc.y;
+  };
+  toLine(client.name);
+  if (client.company) toLine(client.company);
   if (client.address) {
-    if (client.address.street) { doc.text(client.address.street, leftX + 20, toY); toY += 12; }
+    if (client.address.street) toLine(client.address.street);
     if (client.address.city || client.address.state || client.address.zipCode) {
-      doc.text(`${client.address.city || ''}, ${client.address.state || ''} ${client.address.zipCode || ''}`, leftX + 20, toY); toY += 12;
+      toLine(`${client.address.city || ''}, ${client.address.state || ''} ${client.address.zipCode || ''}`);
     }
-    if (client.address.country) { doc.text(client.address.country, leftX + 20, toY); toY += 12; }
+    if (client.address.country) toLine(client.address.country);
   }
 
   // --- JOB ADDRESS SECTION (in the yellow highlighted area) ---
   let jobAddressY = clientY;
-  let jobAddressX = 175;
-  let jobAddressColWidth = colWidth;
-  
+
   // Only show Job Address section if there's data
   if (invoice.jobAddress && (invoice.jobAddress.location || invoice.jobAddress.city || invoice.jobAddress.country || invoice.jobAddress.postalCode)) {
     doc.font('Helvetica-Bold').fontSize(10).text('Job Address', jobAddressX, jobAddressY);
     let jobAddressTextY = jobAddressY + 12;
-    
+
     if (invoice.jobAddress.location) {
-      doc.font('Helvetica').fontSize(11).text(`${invoice.jobAddress.location}`, jobAddressX+12, jobAddressTextY, { width: 100, align: 'left' });
-      // Calculate lines based on 20 characters per line
+      doc.font('Helvetica').fontSize(11).text(`${invoice.jobAddress.location}`, jobAddressX + 12, jobAddressTextY, { width: 100, align: 'left' });
       const locationLines = Math.ceil(`${invoice.jobAddress.location}`.length / 20);
       jobAddressTextY += locationLines * 12;
     }
     if (invoice.jobAddress.city) {
-      doc.font('Helvetica').fontSize(11).text(`${invoice.jobAddress.city}, ${invoice.jobAddress.postalCode}`, jobAddressX+12, jobAddressTextY, { width: 100, align: 'left' });
+      doc.font('Helvetica').fontSize(11).text(`${invoice.jobAddress.city}, ${invoice.jobAddress.postalCode}`, jobAddressX + 12, jobAddressTextY, { width: 100, align: 'left' });
       const cityLines = Math.ceil(`${invoice.jobAddress.city}, ${invoice.jobAddress.postalCode}`.length / 20);
       jobAddressTextY += cityLines * 12;
     }
     if (invoice.jobAddress.country) {
-      doc.font('Helvetica').fontSize(11).text(`${invoice.jobAddress.country}`, jobAddressX+12, jobAddressTextY, { width: 100, align: 'left' });
+      doc.font('Helvetica').fontSize(11).text(`${invoice.jobAddress.country}`, jobAddressX + 12, jobAddressTextY, { width: 100, align: 'left' });
       const countryLines = Math.ceil(`${invoice.jobAddress.country}`.length / 20);
       jobAddressTextY += countryLines * 12;
     }
@@ -200,15 +234,16 @@ const generatePDF = async (invoice, client) => {
      .text('DESCRIPTION OF WORK', leftX, descY + 3, { width: 520, align: 'center' });
   doc.fillColor('#000');
   descY += 18;
-  doc.rect(leftX, descY, 520, 50).stroke();
-  doc.font('Helvetica').fontSize(9).text(invoice.descriptionOfWork || '', leftX + 5, descY + 5, { width: 510, height: 40 });
+  const descriptionBodyHeight = 92;
+  doc.rect(leftX, descY, 520, descriptionBodyHeight).stroke();
+  doc.font('Helvetica').fontSize(9).text(invoice.descriptionOfWork || '', leftX + 5, descY + 5, { width: 510, height: descriptionBodyHeight - 10 });
 
   // --- LABOUR TABLE ---
-  let labourY = descY + 50;
+  let labourY = descY + descriptionBodyHeight;
   doc.rect(leftX, labourY, 520, 18).fillAndStroke('#000', '#000');
   let lx = leftX;
   const labourHeaders = ['NOTES', 'LABOUR', 'HRS.', 'RATE', 'AMOUNT'];
-  const labourColWidths = [125, 90, 70, 70, 165];
+  const labourColWidths = [205, 135, 42, 48, 90];
   for (let i = 0; i < labourHeaders.length; i++) {
     doc.fillColor('#fff').font('Helvetica-Bold').fontSize(10)
        .text(labourHeaders[i], lx, labourY + 3, { width: labourColWidths[i], align: 'center' });
@@ -218,7 +253,7 @@ const generatePDF = async (invoice, client) => {
   // Table grid
   labourY += 18;
   let labourRows = (invoice.labour || []);
-  let labourRowCount = Math.max(labourRows.length + 2, 8); // at least 6 rows
+  let labourRowCount = Math.max(labourRows.length + 2, 5);
   const labourTable = {
     x: leftX,
     y: labourY,
@@ -226,11 +261,11 @@ const generatePDF = async (invoice, client) => {
     rowHeight: 14,
     rows: labourRowCount,
     columns: [
-      { label: 'NOTES', width: 125 },
-      { label: 'LABOUR', width: 90 },
-      { label: 'HRS.', width: 70 },
-      { label: 'RATE', width: 70 },
-      { label: 'AMOUNT', width: 165 },
+      { label: 'NOTES', width: labourColWidths[0] },
+      { label: 'LABOUR', width: labourColWidths[1] },
+      { label: 'HRS.', width: labourColWidths[2] },
+      { label: 'RATE', width: labourColWidths[3] },
+      { label: 'AMOUNT', width: labourColWidths[4] },
     ]
   };
   doc.rect(labourTable.x, labourTable.y, labourTable.width, labourTable.rowHeight * labourTable.rows).stroke();
@@ -249,7 +284,7 @@ const generatePDF = async (invoice, client) => {
     const row = i < labourRows.length ? labourRows[i] : {};
     doc.font('Helvetica').fontSize(9).text(row.notes || '', lx3 + 2, ly + 2, { width: labourTable.columns[0].width - 4 });
     lx3 += labourTable.columns[0].width;
-    doc.text(row.type || '', lx3 + 2, ly + 2, { width: labourTable.columns[1].width - 4 });
+    doc.text(labourTypeForPdf(row), lx3 + 2, ly + 2, { width: labourTable.columns[1].width - 4 });
     lx3 += labourTable.columns[1].width;
     doc.text(row.hrs != null ? row.hrs : '', lx3 + 2, ly + 2, { width: labourTable.columns[2].width - 4 });
     lx3 += labourTable.columns[2].width;
@@ -260,18 +295,10 @@ const generatePDF = async (invoice, client) => {
   }
   let afterLabourY = labourTable.y + labourTable.rowHeight * labourTable.rows;
 
-  // --- TOTAL LABOUR HEADER ---
-  doc.save();
-  doc.rect(leftX, afterLabourY, 520, 18).fill('#fff');
-  doc.restore();
-  doc.fillColor('#000').font('Helvetica-Bold').fontSize(13)
-     .text('TOTAL LABOUR', leftX, afterLabourY + 3, { width: 520, align: 'center' });
-  afterLabourY += 18;
-
   // --- MATERIALS TABLE ---
   let mx = leftX;
   const materialHeaders = ['QTY.', 'MATERIAL', 'AMOUNT'];
-  const materialColWidths = [60, 295, 165];
+  const materialColWidths = [40, 385, 95];
   doc.rect(leftX, afterLabourY, 520, 18).fillAndStroke('#000', '#000');
   for (let i = 0; i < materialHeaders.length; i++) {
     doc.fillColor('#fff').font('Helvetica-Bold').fontSize(10)
@@ -289,9 +316,9 @@ const generatePDF = async (invoice, client) => {
     rowHeight: 14,
     rows: materialRowCount,
     columns: [
-      { label: 'QTY.', width: 60 },
-      { label: 'MATERIAL', width: 295 },
-      { label: 'AMOUNT', width: 165 },
+      { label: 'QTY.', width: materialColWidths[0] },
+      { label: 'MATERIAL', width: materialColWidths[1] },
+      { label: 'AMOUNT', width: materialColWidths[2] },
     ]
   };
   doc.rect(materialsTable.x, materialsTable.y, materialsTable.width, materialsTable.rowHeight * materialsTable.rows).stroke();
@@ -561,6 +588,80 @@ router.get('/', async (req, res) => {
       .sort({ createdAt: -1 });
     res.json(invoices);
   } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Bulk download invoices by date range
+router.get('/bulk-download', async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    
+    if (!startDate || !endDate) {
+      return res.status(400).json({ message: 'Start date and end date are required' });
+    }
+
+    // Parse dates
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999); // Include entire end date
+
+    // Find invoices in date range
+    const invoices = await Invoice.find({
+      issueDate: {
+        $gte: start,
+        $lte: end
+      }
+    }).populate('client').sort({ issueDate: 1 });
+
+    if (invoices.length === 0) {
+      return res.status(404).json({ message: 'No invoices found for the specified date range' });
+    }
+
+    // Create ZIP file
+    const zipFileName = `invoices-${startDate}-to-${endDate}.zip`;
+    const zipFilePath = path.join(__dirname, '../uploads', zipFileName);
+    
+    // Create output stream
+    const output = fs.createWriteStream(zipFilePath);
+    const archive = archiver('zip', { zlib: { level: 9 } });
+
+    // Handle archive events
+    archive.on('error', (err) => {
+      throw err;
+    });
+
+    archive.pipe(output);
+
+    // Generate PDFs and add to ZIP
+    for (const invoice of invoices) {
+      try {
+        const pdfPath = await generatePDF(invoice, invoice.client);
+        const pdfFileName = `invoice-${invoice.invoiceNumber}.pdf`;
+        archive.file(pdfPath, { name: pdfFileName });
+      } catch (error) {
+        console.error(`Error generating PDF for invoice ${invoice.invoiceNumber}:`, error);
+      }
+    }
+
+    // Finalize the archive
+    await archive.finalize();
+
+    // Wait for the output stream to finish
+    output.on('close', () => {
+      res.download(zipFilePath, zipFileName, (err) => {
+        if (err) {
+          console.error('Error downloading ZIP file:', err);
+        }
+        // Clean up the ZIP file after download
+        fs.unlink(zipFilePath, (unlinkErr) => {
+          if (unlinkErr) console.error('Error deleting ZIP file:', unlinkErr);
+        });
+      });
+    });
+
+  } catch (error) {
+    console.error('Error in bulk download:', error);
     res.status(500).json({ message: error.message });
   }
 });
